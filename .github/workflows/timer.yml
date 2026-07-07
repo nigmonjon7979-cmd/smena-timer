@@ -1,20 +1,16 @@
 name: Aniq vaqt taymeri
 on:
   schedule:
-    # Ertalabki soqchi (Toshkent 08:00 va 10:00 uchun oldindan turadi)
+    # Ertalabki soqchilar (Toshkent 08:00 va 10:00 => 03:00/05:00 UTC)
     - cron: '37 0,1,2 * * *'
-    # Kechki soqchi (18:00 va 20:00 uchun)
+    # Kechki soqchilar (Toshkent 18:00 va 20:00 => 13:00/15:00 UTC)
     - cron: '37 10,11,12 * * *'
   workflow_dispatch:
-
-concurrency:
-  group: timer
-  cancel-in-progress: false
 
 jobs:
   timer:
     runs-on: ubuntu-latest
-    timeout-minutes: 355
+    timeout-minutes: 330
     steps:
       - name: Belgilangan soniyada signal berish
         env:
@@ -24,7 +20,8 @@ jobs:
             target=$(date -u -d "today $T" +%s)
             now=$(date -u +%s)
             diff=$(( target - now ))
-            if [ $diff -gt 16200 ]; then echo "skip $T (juda uzoq)"; continue; fi
+            # faqat 2.5 soat ichidagi nishon — umumiy ish vaqti limitdan oshmaydi
+            if [ $diff -gt 9000 ]; then echo "skip $T (juda uzoq)"; continue; fi
             if [ $diff -lt -1200 ]; then echo "skip $T (o'tib ketgan)"; continue; fi
             if [ $diff -gt 0 ]; then echo "kutish: $T gacha $diff soniya"; sleep $diff; fi
             curl -s --max-time 30 "$PING_URL" || true
