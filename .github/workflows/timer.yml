@@ -6,6 +6,11 @@ on:
     # Kechki soqchilar (Toshkent 18:00 va 20:00 => 13:00/15:00 UTC)
     - cron: '37 10,11,12 * * *'
   workflow_dispatch:
+    inputs:
+      offset:
+        description: 'Soniya siljishi (qo`shaloq soqchi to`qnashmasligi uchun)'
+        default: '0'
+        required: false
 
 jobs:
   timer:
@@ -15,15 +20,19 @@ jobs:
       - name: Belgilangan soniyada signal berish
         env:
           PING_URL: ${{ secrets.PING_URL }}
+          OFFSET_IN: ${{ inputs.offset }}
         run: |
+          # Dispatch orqali kelgan siljish; cron uchun run-id'dan 0-39s siljish
+          OFFSET="${OFFSET_IN:-$(( GITHUB_RUN_ID % 40 ))}"
+          echo "Siljish: ${OFFSET}s"
           for T in "03:00" "05:00" "13:00" "15:00"; do
-            target=$(date -u -d "today $T" +%s)
+            target=$(( $(date -u -d "today $T" +%s) + OFFSET ))
             now=$(date -u +%s)
             diff=$(( target - now ))
             # faqat 2.5 soat ichidagi nishon — umumiy ish vaqti limitdan oshmaydi
             if [ $diff -gt 9000 ]; then echo "skip $T (juda uzoq)"; continue; fi
             if [ $diff -lt -1200 ]; then echo "skip $T (o'tib ketgan)"; continue; fi
-            if [ $diff -gt 0 ]; then echo "kutish: $T gacha $diff soniya"; sleep $diff; fi
+            if [ $diff -gt 0 ]; then echo "kutish: $T+${OFFSET}s gacha $diff soniya"; sleep $diff; fi
             curl -s --max-time 30 "$PING_URL" || true
             echo "$(date -u '+%H:%M:%S') UTC — signal berildi ($T)"
           done
